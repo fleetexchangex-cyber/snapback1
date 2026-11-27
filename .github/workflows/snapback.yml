@@ -2,9 +2,13 @@ name: Snapback scan
 
 on:
   schedule:
-    # Every 15 minutes, Monday to Friday, 12:00-20:45 UTC
-    # = 13:00-21:45 Stockholm in winter, covering US pre-market filings and the whole US session.
-    - cron: "*/15 12-20 * * 1-5"
+    # Times are UTC. Winter: Stockholm = UTC+1, New York = UTC-5 (summer: +2 / -4).
+    # Pre-market, every 30 min: 09:00-12:30 UTC (4:00-7:30 New York in winter)
+    - cron: "*/30 9-12 * * 1-5"
+    # Late pre-market and the regular session, every 15 min: 13:00-20:45 UTC
+    - cron: "*/15 13-20 * * 1-5"
+    # After-hours, every 30 min: 21:00-23:30 UTC (16:00-18:30 New York in winter)
+    - cron: "*/30 21-23 * * 1-5"
   workflow_dispatch:
     inputs:
       mode:

@@ -9,14 +9,23 @@ It gives facts only, never a trade call.
 
 ## What triggers an alert
 
-**1. Big price moves** (only while the US market is open)
-- A stock down 7% or more, or up 7% or more, today versus yesterday's close.
-- Alerted once per stock per day, and again only if the move grows by another 5 points.
+**1. Big price moves** (pre-market from 4:00, regular session, after-hours until 20:00 New York)
+- A stock down 7% or more, or up 7% or more, versus the last regular-session close.
+- Pre-market and after-hours alerts are labelled as such; trading is thin then, so the move can
+  change at the open. A stock flagged after-hours or pre-market only alerts again if the move
+  grows by another 5 points.
+- Alerted once per stock per session, and again only if the move grows by another 5 points.
 - If more than 10 stocks trigger at once (a market-wide day), you get one summary instead.
 
-Each price alert contains: the move, price, volume against normal, the S&P 500's move,
-same-sector stocks also down 4% or more, a first-pass drop type, any SEC 8-K filings from
-the last 3 days, recent headlines with links, and (for drops) the backtest base rates.
+Each price alert contains: the move, price, volume against normal (regular session only),
+the S&P 500's move, same-sector stocks moving 4%+ the same way, a first-pass drop type, any
+SEC 8-K filings from the last 3 days, recent headlines with links, (for drops) the backtest
+base rates, and a Read line:
+- SECTOR MOVE - several peers moved the same way.
+- COMPANY NEWS - a filing or headline explains it.
+- NO NEWS FOUND - the stock moved on its own. The bot keeps checking this stock for 36 hours
+  and sends one "SNAPBACK UPDATE - NEWS NOW OUT" message as soon as a filing or headline appears,
+  so you can see whether the move came before the news.
 
 **2. Important SEC filings** (also before the open)
 A new 8-K from one of these companies with one of these items:
@@ -75,8 +84,9 @@ out, who else is affected, the drop type with its historical base rates, and wha
 
 ## Costs and limits
 
-- Free. GitHub gives private repositories 2,000 Actions minutes a month; this schedule uses
-  roughly 1,000-1,300. Making the repository public removes the limit.
+- Free. GitHub gives private repositories 2,000 Actions minutes a month. If every scheduled run
+  happened this schedule would use about 1,900; in practice GitHub skips many, so real use is far
+  lower. Making the repository public removes the limit.
 - GitHub's scheduler can start runs a few minutes late, and Yahoo prices can lag up to 15 minutes,
   so expect alerts 5-30 minutes after a move.
 - Yahoo occasionally blocks requests; a failed price scan is retried by the next run.
