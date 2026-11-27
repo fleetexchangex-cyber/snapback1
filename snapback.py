@@ -2,7 +2,7 @@
 
 Every run it checks two things and sends a Telegram message for each new event:
 
-1. Big price moves: an S&P 500 / Nasdaq 100 stock up or down DROP_PCT (default 7%)
+1. Big price moves: an S&P 500 / Nasdaq 100 stock down DROP_PCT (default 7%) or up UP_PCT (default 10%)
    or more today versus yesterday's close (only while the US market is open).
 2. Important SEC filings: a new 8-K from one of those companies with a material item
    (CEO/CFO change, deal, bankruptcy, accounting restatement, impairment, ...).
@@ -13,7 +13,8 @@ It gives facts only, never a trade call.
 Environment variables:
   TELEGRAM_TOKEN, TELEGRAM_CHAT_ID  required unless DRY_RUN=1
   SEC_USER_AGENT     "Your Name your@email.com" - the SEC requires a contact in the user agent
-  DROP_PCT           move size that triggers a price alert, in percent (default 7)
+  DROP_PCT           drop size that triggers a price alert, in percent (default 7)
+  UP_PCT             rise size that triggers a price alert, in percent (default 10)
   PEER_PCT           a peer counts as "also down" at this fall, in percent (default 4)
   REALERT_STEP       alert again on the same day if the move grows by this many points (default 5)
   DIGEST_OVER        more price alerts than this in one run -> one summary message (default 10)
@@ -44,6 +45,7 @@ NY = ZoneInfo("America/New_York")
 STHLM = ZoneInfo("Europe/Stockholm")
 
 DROP_PCT = float(os.getenv("DROP_PCT", "7"))
+UP_PCT = float(os.getenv("UP_PCT", "10"))
 PEER_PCT = float(os.getenv("PEER_PCT", "4"))
 REALERT_STEP = float(os.getenv("REALERT_STEP", "5"))
 DIGEST_OVER = int(os.getenv("DIGEST_OVER", "10"))
@@ -344,7 +346,7 @@ def main(force=False):
                 hits = []
                 for t in uni.ticker:
                     r = today_ret.get(t)
-                    if r is None or pd.isna(r) or abs(r) * 100 < DROP_PCT:
+                    if r is None or pd.isna(r) or r * 100 > -DROP_PCT and r * 100 < UP_PCT:
                         continue
                     prev = state["price_alerted"].get(t)
                     if prev is not None and abs(r) * 100 < abs(prev) + REALERT_STEP:
@@ -353,7 +355,7 @@ def main(force=False):
                 hits.sort(key=lambda h: h[1])
 
                 if len(hits) > DIGEST_OVER:
-                    lines = [f"SNAPBACK SUMMARY - {len(hits)} large US stocks moved {DROP_PCT:.0f}%+ today",
+                    lines = [f"SNAPBACK SUMMARY - {len(hits)} large US stocks fell {DROP_PCT:.0f}%+ or rose {UP_PCT:.0f}%+ today",
                              f"S&P 500 (SPY) {pct(spy_ret)} | time {datetime.now(STHLM):%d %b %H:%M} Stockholm",
                              "Biggest: " + ", ".join(f"{t} {pct(r)}" for t, r, _ in hits[:20]),
                              "By sector: " + ", ".join(f"{g} {n}" for g, n in

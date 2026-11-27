@@ -10,7 +10,7 @@ It gives facts only, never a trade call.
 ## What triggers an alert
 
 **1. Big price moves** (only while the US market is open)
-- A stock up or down 7% or more today versus yesterday's close.
+- A stock down 7% or more, or up 10% or more, today versus yesterday's close.
 - Alerted once per stock per day, and again only if the move grows by another 5 points.
 - If more than 10 stocks trigger at once (a market-wide day), you get one summary instead.
 
@@ -62,7 +62,8 @@ After that it runs on its own schedule.
 ## Settings
 
 Repository variables (Settings > Secrets and variables > Actions > Variables):
-- `DROP_PCT` - size of move that triggers a price alert, in percent (default 7)
+- `DROP_PCT` - size of drop that triggers a price alert, in percent (default 7)
+- `UP_PCT` - size of rise that triggers a price alert, in percent (default 10)
 
 Other settings are listed at the top of `snapback.py`.
 
