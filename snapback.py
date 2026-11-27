@@ -2,7 +2,7 @@
 
 Every run it checks two things and sends a Telegram message for each new event:
 
-1. Big price moves: an S&P 500 / Nasdaq 100 stock down DROP_PCT (default 7%) or up UP_PCT (default 10%)
+1. Big price moves: an S&P 500 / Nasdaq 100 stock down DROP_PCT (default 7%) or up UP_PCT (default 7%)
    or more today versus yesterday's close (only while the US market is open).
 2. Important SEC filings: a new 8-K from one of those companies with a material item
    (CEO/CFO change, deal, bankruptcy, accounting restatement, impairment, ...).
@@ -14,7 +14,7 @@ Environment variables:
   TELEGRAM_TOKEN, TELEGRAM_CHAT_ID  required unless DRY_RUN=1
   SEC_USER_AGENT     "Your Name your@email.com" - the SEC requires a contact in the user agent
   DROP_PCT           drop size that triggers a price alert, in percent (default 7)
-  UP_PCT             rise size that triggers a price alert, in percent (default 10)
+  UP_PCT             rise size that triggers a price alert, in percent (default 7)
   PEER_PCT           a peer counts as "also down" at this fall, in percent (default 4)
   REALERT_STEP       alert again on the same day if the move grows by this many points (default 5)
   DIGEST_OVER        more price alerts than this in one run -> one summary message (default 10)
@@ -45,7 +45,7 @@ NY = ZoneInfo("America/New_York")
 STHLM = ZoneInfo("Europe/Stockholm")
 
 DROP_PCT = float(os.getenv("DROP_PCT", "7"))
-UP_PCT = float(os.getenv("UP_PCT", "10"))
+UP_PCT = float(os.getenv("UP_PCT", "7"))
 PEER_PCT = float(os.getenv("PEER_PCT", "4"))
 REALERT_STEP = float(os.getenv("REALERT_STEP", "5"))
 DIGEST_OVER = int(os.getenv("DIGEST_OVER", "10"))
@@ -370,6 +370,8 @@ def main(force=False):
                     peers = [p for p in uni.ticker if group[p] == group[t] and p != t]
                     pr = today_ret[peers].dropna()
                     peers_down = pr[pr <= -PEER_PCT / 100].sort_values()
+                    peers_up = pr[pr >= PEER_PCT / 100].sort_values(ascending=False)
+                    same_way = peers_down if r < 0 else peers_up
                     need = max(2, math.ceil(0.05 * len(pr)))
                     c = close[t].dropna()
                     v = vol[t].dropna()
@@ -383,8 +385,8 @@ def main(force=False):
                         f"Price {c.iloc[-1]:.2f} (yesterday's close {c.iloc[-2]:.2f}), volume so far {vol_x:.1f}x the 20-day average",
                         f"Time: {datetime.now(STHLM):%d %b %Y %H:%M} Stockholm",
                         f"S&P 500 (SPY) today {pct(spy_ret)}; stock over the past month {pct(month)}",
-                        f"Sector group: {group[t]}. Peers {PEER_PCT:.0f}%+ down today: "
-                        + (", ".join(f"{p} {pct(x)}" for p, x in peers_down.head(6).items()) or "none")
+                        f"Sector group: {group[t]}. Peers {PEER_PCT:.0f}%+ {'down' if r < 0 else 'up'} today: "
+                        + (", ".join(f"{p} {pct(x)}" for p, x in same_way.head(6).items()) or "none")
                         + f" (of {len(pr)})",
                     ]
                     if r < 0:
@@ -401,6 +403,13 @@ def main(force=False):
                         lines += [f"- {title} ({pub}) {link}" for title, link, pub in news]
                     else:
                         lines.append("Headlines: none found in the last 2 days")
+                    if len(same_way) >= need:
+                        lines.append(f"Read: SECTOR MOVE - {len(same_way)} peers moved the same way")
+                    elif not fl and not news:
+                        lines.append("Read: NO NEWS FOUND - the stock is moving on its own with no filing or headline yet. "
+                                     "Could be news not yet public or not yet picked up; check again shortly")
+                    else:
+                        lines.append("Read: COMPANY NEWS - see filings/headlines above")
                     if r < 0:
                         lines.append(BACKTEST)
                     lines.append("Paste this into Claude for the full picture. Facts only, not advice.")

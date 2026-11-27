@@ -35,7 +35,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           DROP_PCT: ${{ vars.DROP_PCT || '7' }}
-          UP_PCT: ${{ vars.UP_PCT || '10' }}
+          UP_PCT: ${{ vars.UP_PCT || '7' }}
         run: |
           case "${{ inputs.mode }}" in
             test) python snapback.py --test ;;
