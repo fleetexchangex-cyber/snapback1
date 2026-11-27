@@ -434,5 +434,7 @@ if __name__ == "__main__":
         send("Snapback test message: the bot can reach this chat.")
     else:
         if not DRY_RUN and not (TOKEN and CHAT_ID):
-            sys.exit("TELEGRAM_TOKEN and TELEGRAM_CHAT_ID must be set (or use DRY_RUN=1)")
+            # Exit cleanly so GitHub does not email a failure every 15 minutes before setup is done.
+            log("TELEGRAM_TOKEN and TELEGRAM_CHAT_ID are not set yet - add them as repository secrets. Nothing sent.")
+            sys.exit(0)
         main(force="--force" in sys.argv)
