@@ -1,53 +1,84 @@
 # Snapback
 
-Sends a Telegram alert when a large US stock drops sharply. It does not make trade calls.
+A free alert bot for large US stocks. Every 15 minutes on weekdays it checks the
+S&P 500 and Nasdaq 100 (510 stocks, listed in `universe.csv`) and sends a Telegram
+message when something important happens. Each message is written to be pasted
+into Claude, which then writes the full analysis.
+
+It gives facts only, never a trade call.
 
 ## What triggers an alert
 
-- The stock is down 7% or more from yesterday's close (setting: `DROP_PCT`)
-- and the drop is at least 3x the stock's normal daily move (setting: `SIGMA`)
-- Universe: 510 stocks, the S&P 500 plus the Nasdaq 100 (`universe.csv`)
-- Scans every 15 minutes during US market hours, Monday to Friday
-- One alert per stock per day, repeated only if it falls another 5 points
-- If more than 10 stocks trigger in one scan, you get a single summary message
+**1. Big price moves** (only while the US market is open)
+- A stock up or down 7% or more today versus yesterday's close.
+- Alerted once per stock per day, and again only if the move grows by another 5 points.
+- If more than 10 stocks trigger at once (a market-wide day), you get one summary instead.
 
-## What each alert says
+Each price alert contains: the move, price, volume against normal, the S&P 500's move,
+same-sector stocks also down 4% or more, a first-pass drop type, any SEC 8-K filings from
+the last 3 days, recent headlines with links, and (for drops) the backtest base rates.
 
-- Size of the drop, price, day low, volume versus average
-- How the S&P 500 and the stock's industry peers are doing
-- Type: earnings reaction, sector-wide, company-specific, or market-wide
-- One line on what similar drops did historically (2014 to Nov 2025 backtest)
-- Top three headlines
+**2. Important SEC filings** (also before the open)
+A new 8-K from one of these companies with one of these items:
 
-## Setup (about 10 minutes)
+| Item | Meaning |
+|---|---|
+| 1.01 / 1.02 | Entered or ended a material agreement (routine loan deals are skipped) |
+| 1.03 | Bankruptcy or receivership |
+| 1.05 | Material cybersecurity incident |
+| 2.01 | Completed an acquisition or sale of assets |
+| 2.04 | Event that accelerates a debt obligation |
+| 2.05 | Restructuring or exit costs |
+| 2.06 | Material impairment |
+| 3.01 | Delisting notice |
+| 4.01 | Change of auditor |
+| 4.02 | Past financial statements can no longer be relied on |
+| 5.01 | Change in control |
+| 5.02 | CEO, CFO, COO or President leaving (board and pay changes are skipped) |
 
-1. In Telegram, message @BotFather, send `/newbot`, and copy the token it gives you.
-2. Send any message to your new bot, then open
-   `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and copy the `chat` `id` number.
-3. Create a new private GitHub repository and upload everything in this folder,
-   including the `.github` folder.
-4. In the repository: Settings > Secrets and variables > Actions > New repository secret.
-   Add `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID`.
-5. Open the Actions tab, enable workflows, choose "Snapback scan" and click "Run workflow" once to check it.
+Earnings releases (item 2.02) are not alerted on their own; the Claude morning briefing covers earnings.
+
+## Where the data comes from (all free)
+
+- Prices: Yahoo Finance (via the `yfinance` library)
+- Filings: SEC EDGAR full-text search
+- Headlines: Yahoo Finance and Google News RSS feeds
+
+## Setup
+
+1. **Telegram bot.** In Telegram, message @BotFather, send `/newbot` and copy the token.
+   Send any message to your new bot, then open
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and copy the `chat` `id`.
+2. **Secrets.** In this repository: Settings > Secrets and variables > Actions > New repository secret.
+   - `TELEGRAM_TOKEN` - the bot token
+   - `TELEGRAM_CHAT_ID` - the chat id
+   - `SEC_USER_AGENT` - your name and an email address, for example `Jane Doe jane@example.com`.
+     The SEC requires automated tools to identify themselves this way; it is only sent to sec.gov.
+3. **Test.** Actions tab > Snapback scan > Run workflow, with mode `test`. You should get a
+   Telegram message within a minute. Mode `dry` prints what it would send to the run log.
 
 After that it runs on its own schedule.
 
-## Changing settings
+## Settings
 
-In the repository: Settings > Secrets and variables > Actions > Variables, add `DROP_PCT`
-(for example `5` or `10`). Other settings are environment variables listed at the top of `snapback.py`.
+Repository variables (Settings > Secrets and variables > Actions > Variables):
+- `DROP_PCT` - size of move that triggers a price alert, in percent (default 7)
 
-## Running it by hand
+Other settings are listed at the top of `snapback.py`.
 
-```
-pip install -r requirements.txt
-DRY_RUN=1 python snapback.py --last-session   # print alerts for the most recent session
-python snapback.py --test                     # send a test message to Telegram
-```
+## Using it with Claude
 
-## Limits
+Copy a whole alert message and paste it into a Claude chat. The "Snapback alert analysis"
+skill turns it into the full picture: what happened, why it matters, what the headline leaves
+out, who else is affected, the drop type with its historical base rates, and what to watch next.
 
-- Prices come from Yahoo Finance and can lag by up to 15 minutes; GitHub's scheduler can add a few more.
-- Regular hours only. An overnight gap is alerted at the first scan after the open.
-- Yahoo sometimes throttles requests. A throttled scan fails and the next one retries.
-- The universe is a fixed list; refresh `universe.csv` when index membership changes.
+## Costs and limits
+
+- Free. GitHub gives private repositories 2,000 Actions minutes a month; this schedule uses
+  roughly 1,000-1,300. Making the repository public removes the limit.
+- GitHub's scheduler can start runs a few minutes late, and Yahoo prices can lag up to 15 minutes,
+  so expect alerts 5-30 minutes after a move.
+- Yahoo occasionally blocks requests; a failed price scan is retried by the next run.
+- `universe.csv` is a fixed list; update it when index membership changes.
+- `state.json` records what has already been alerted, so nothing is sent twice. Deleting it
+  makes the next run treat all recent filings as already seen (no flood of old alerts).
