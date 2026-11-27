@@ -48,9 +48,9 @@ PEER_PCT = float(os.getenv("PEER_PCT", "4"))
 REALERT_STEP = float(os.getenv("REALERT_STEP", "5"))
 DIGEST_OVER = int(os.getenv("DIGEST_OVER", "10"))
 DRY_RUN = os.getenv("DRY_RUN") == "1"
-TOKEN = os.getenv("TELEGRAM_TOKEN", "")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-SEC_UA = os.getenv("SEC_USER_AGENT") or "Snapback alert bot admin@example.com"
+TOKEN = os.getenv("TELEGRAM_TOKEN", "").strip()
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+SEC_UA = (os.getenv("SEC_USER_AGENT") or "").strip() or "Snapback alert bot admin@example.com"
 
 # 8-K items worth an alert. Routine items (results 2.02, Reg FD 7.01, other events 8.01,
 # exhibits 9.01, shareholder votes 5.07, bylaws 5.03) are skipped to keep the noise down.
