@@ -205,8 +205,8 @@ def headlines(name, ticker, n=4):
     return out
 
 
-DEPART = ("resign", "retire", "step down", "stepping down", "depart", "terminat", "separation", "transition")
-SENIOR = ("chief executive", "chief financial", "chief operating", "president", "ceo", "cfo")
+DEPART = ("resign", "retire", "step down", "stepping down", "will depart", "departure of", "no longer serve", "terminated as", "has been terminated")
+SENIOR = ("chief executive officer", "chief financial officer", "chief operating officer", "president and")
 
 
 def is_senior_departure(url):
@@ -215,7 +215,18 @@ def is_senior_departure(url):
         text = sec_get(url).text.lower()
     except Exception:
         return True  # cannot check: alert rather than miss it
-    return any(d in text for d in DEPART) and any(s in text for s in SENIOR)
+    # Look only at the 5.02 section, and require a departure word and a senior title close together,
+    # so pay changes and director appointments do not trigger.
+    start = text.find("5.02")
+    section = text[start:start + 6000] if start >= 0 else text
+    for d in DEPART:
+        i = section.find(d)
+        while i >= 0:
+            window = section[max(0, i - 400): i + 400]
+            if any(s in window for s in SENIOR):
+                return True
+            i = section.find(d, i + 1)
+    return False
 
 
 # ---------------------------------------------------------------- SEC filings
